@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Management System</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(120deg, #f0f4f8, #d9e3f0); /* Gradient background */
+      font-family: 'Helvetica Neue', sans-serif;
+    }
+
+    .card {
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+      background-color: #007bff;
+      color: white;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    .btn-primary {
+      background-color: #007bff;
+      border: none;
+      transition: background-color 0.3s ease;
+    }
+
+    .btn-primary:hover {
+      background-color: #0056b3;
+    }
+
+    .btn-success {
+      background-color: #28a745;
+      border: none;
+      transition: background-color 0.3s ease;
+    }
+
+    .btn-success:hover {
+      background-color: #218838;
+    }
+
+    .btn-warning, .btn-danger {
+      transition: background-color 0.3s ease;
+    }
+
+    .btn-warning:hover {
+      background-color: #d39e00;
+    }
+
+    .btn-danger:hover {
+      background-color: #c82333;
+    }
+
+    table {
+      background-color: white;
+      border-collapse: collapse;
+      width: 100%;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    table thead {
+      background-color: #007bff;
+      color: white;
+    }
+
+    table th, table td {
+      padding: 12px 15px;
+      text-align: left;
+    }
+
+    table tbody tr:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+
+    table tbody tr:hover {
+      background-color: #f1f1f1;
+      cursor: pointer;
+    }
+
+    .container {
+      max-width: 900px;
+    }
+
+    #searchInput {
+      border-radius: 30px;
+      border: 1px solid #ced4da;
+      padding-left: 20px;
+      transition: box-shadow 0.3s ease;
+    }
+
+    #searchInput:focus {
+      box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
+    }
+
+    #pagination-info {
+      font-size: 0.9rem;
+      color: #6c757d;
+    }
+
+    .btn-block {
+      border-radius: 30px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container my-5">
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div class="card shadow">
+          <div class="card-header text-center">
+            Employee Management System
+          </div>
+          <div class="card-body">
+            <form id="employeeForm">
+              <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" class="form-control" id="name" placeholder="Enter name" required>
+              </div>
+              <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" class="form-control" id="email" placeholder="Enter email" required>
+              </div>
+              <div class="form-group">
+                <label for="phone">Phone</label>
+                <input type="text" class="form-control" id="phone" placeholder="Enter phone number" required>
+              </div>
+              <div class="form-group">
+                <label for="position">Position</label>
+                <input type="text" class="form-control" id="position" placeholder="Enter job position" required>
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">Add Employee</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <h5 class="text-center">Search by name or email</h5>
+          <input type="text" class="form-control mb-3" id="searchInput" placeholder="Search by name or email">
+
+          <h4 class="text-center mt-4">Employee List</h4>
+          <p id="pagination-info" class="text-center">Page 1</p>
+
+          <table class="table table-striped table-bordered mt-3">
+            <thead class="thead-light">
+              <tr>
+                <th onclick="sortTable(0)">Name &#9662;</th>
+                <th onclick="sortTable(1)">Email &#9662;</th>
+                <th onclick="sortTable(2)">Phone &#9662;</th>
+                <th onclick="sortTable(3)">Position &#9662;</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="employeeTable">
+              <!-- Employees will be dynamically loaded here -->
+            </tbody>
+          </table>
+
+          <div class="d-flex justify-content-between">
+            <button id="prevPage" class="btn btn-secondary">Previous</button>
+            <button id="nextPage" class="btn btn-secondary">Next</button>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <button id="exportCSV" class="btn btn-success btn-block">Export to CSV</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://{{backend-ip}}:4000/api/employees'; // Replace with your backend URL
+    let selectedEmployeeId = null;
+    let currentPage = 1;
+    const recordsPerPage = 5;
+    let employees = [];
+    let sortedColumn = null;
+    let ascending = true;
+
+    $(document).ready(function () {
+      loadEmployees();
+
+      $('#searchInput').on('input', function () {
+        loadEmployees();
+      });
+
+      $('#prevPage').click(function () {
+        if (currentPage > 1) {
+          currentPage--;
+          loadEmployees();
+        }
+      });
+
+      $('#nextPage').click(function () {
+        if (currentPage * recordsPerPage < employees.length) {
+          currentPage++;
+          loadEmployees();
+        }
+      });
+    });
+
+    function loadEmployees() {
+      $.get(API_URL, function (data) {
+        employees = data.employees;
+        renderTable();
+      });
+    }
+
+    function renderTable() {
+      const searchQuery = $('#searchInput').val().toLowerCase();
+      const filteredEmployees = employees.filter(employee => 
+        employee.name.toLowerCase().includes(searchQuery) || 
+        employee.email.toLowerCase().includes(searchQuery)
+      );
+
+      const sortedEmployees = sortEmployees(filteredEmployees);
+      const pageEmployees = sortedEmployees.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
+
+      let rows = '';
+      pageEmployees.forEach((employee) => {
+        rows += `
+          <tr>
+            <td>${employee.name}</td>
+            <td>${employee.email}</td>
+            <td>${employee.phone}</td>
+            <td>${employee.position}</td>
+            <td>
+              <button class="btn btn-warning btn-sm" onclick="editEmployee('${employee.id}', '${employee.name}', '${employee.email}', '${employee.phone}', '${employee.position}')">Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteEmployee('${employee.id}')">Delete</button>
+            </td>
+          </tr>
+        `;
+      });
+
+      $('#employeeTable').html(rows);
+      $('#pagination-info').text(`Page ${currentPage}`);
+    }
+
+    function sortEmployees(employeeList) {
+      if (sortedColumn !== null) {
+        return employeeList.sort((a, b) => {
+          const aVal = Object.values(a)[sortedColumn].toLowerCase();
+          const bVal = Object.values(b)[sortedColumn].toLowerCase();
+          if (ascending) return aVal.localeCompare(bVal);
+          return bVal.localeCompare(aVal);
+        });
+      }
+      return employeeList;
+    }
+
+    function sortTable(columnIndex) {
+      if (sortedColumn === columnIndex) {
+        ascending = !ascending;
+      } else {
+        sortedColumn = columnIndex;
+        ascending = true;
+      }
+      renderTable();
+    }
+
+    $('#employeeForm').submit(function (event) {
+      event.preventDefault();
+      const newEmployee = {
+        name: $('#name').val(),
+        email: $('#email').val(),
+        phone: $('#phone').val(),
+        position: $('#position').val(),
+      };
+
+      if (selectedEmployeeId) {
+        $.ajax({
+          url: `${API_URL}/${selectedEmployeeId}`,
+          method: 'PUT',
+          contentType: 'application/json',
+          data: JSON.stringify(newEmployee),
+          success: function () {
+            $('#employeeForm')[0].reset();
+            selectedEmployeeId = null;
+            loadEmployees();
+          }
+        });
+      } else {
+        $.ajax({
+          url: API_URL,
+          method: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify(newEmployee),
+          success: function () {
+            $('#employeeForm')[0].reset();
+            loadEmployees();
+          }
+        });
+      }
+    });
+
+    function editEmployee(id, name, email, phone, position) {
+      selectedEmployeeId = id;
+      $('#name').val(name);
+      $('#email').val(email);
+      $('#phone').val(phone);
+      $('#position').val(position);
+    }
+
+    function deleteEmployee(id) {
+      if (confirm('Are you sure you want to delete this employee?')) {
+        $.ajax({
+          url: `${API_URL}/${id}`,
+          method: 'DELETE',
+          success: function () {
+            loadEmployees();
+          }
+        });
+      }
+    }
+
+    $('#exportCSV').click(function () {
+      const csvContent = "data:text/csv;charset=utf-8,"
+        + employees.map(e => `${e.name},${e.email},${e.phone},${e.position}`).join("\n");
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "employees.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  </script>
+
+</body>
+</html>
